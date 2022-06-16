@@ -1,4 +1,5 @@
 # Azure Identity Multitenant Sample
+Queries User's Azure resources using registered [Azure Multitenant App](https://docs.microsoft.com/en-us/azure/active-directory/develop/howto-convert-app-to-be-multi-tenant) and [auth-code-flow](https://docs.microsoft.com/en-us/azure/active-directory/develop/v2-oauth2-auth-code-flow)
 
 ## Prerequisite
 - Azure account(s) with at least 2 tenants for testing and administrator rights for home app account
@@ -7,10 +8,10 @@
 ## Configuration
 
 ### Configure Azure Multitenant App
-- create multitenant app and note its application_id (client_id)
+- register Azure Multitenant app and note its application_id (client_id)
 - set API Permissions:
     * https://management.azure.com/user_impersonation
-    * https://graph.microsoft.com/User.Read 
+    * https://graph.microsoft.com/User.Read
 - Create and note Client Secret
 
 ### configure `.env`
