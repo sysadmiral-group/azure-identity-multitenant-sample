@@ -31,9 +31,20 @@ const REDIRECT_URI = process.env.REDIRECT_URI;
 const POST_LOGOUT_REDIRECT_URI = process.env.POST_LOGOUT_REDIRECT_URI;
 const GRAPH_ME_ENDPOINT = process.env.GRAPH_API_ENDPOINT + "v1.0/me";
 
+const azureSigninScopes = [
+    // "openid", "email", "profile", "offline_access",
+    "User.Read",
+    "https://management.azure.com/user_impersonation"   
+]
+const azureAuthorizedScopes = [
+    "https://management.azure.com/.default",  
+]
+
 module.exports = {
     msalConfig,
     REDIRECT_URI,
     POST_LOGOUT_REDIRECT_URI,
-    GRAPH_ME_ENDPOINT
+    GRAPH_ME_ENDPOINT,
+    azureSigninScopes,
+    azureAuthorizedScopes,
 };

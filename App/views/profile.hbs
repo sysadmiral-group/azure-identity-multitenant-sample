@@ -1,14 +1,27 @@
-<h1>Microsoft Graph API</h1>
-<h3>/me endpoint response</h3>
+<h1>Azure API Call</h1>
+<br>
+    <a href="https://docs.microsoft.com/en-us/rest/api/resources/resources/get" target="_blank">Azure Management REST Api Referenese</a>
+
+<h3>Subscriptions and resource groups</h3>
 <table>
     <tbody>
         {{#each profile}}
         <tr>
-            <td>{{@key}}</td>
+            <td>{{@key}}: </td>
             <td>{{this}}</td>
         </tr>
         {{/each}}
     </tbody>
 </table>
 <br>
+<dim>
+    <p><b>curl Example:</b></p>
+<pre>
+ACCESS_TOKEN={{accessToken}}
+{{ curlExample }}
+</pre>
+</dim>
+
+<br>
+
 <a href="/">Go back</a>

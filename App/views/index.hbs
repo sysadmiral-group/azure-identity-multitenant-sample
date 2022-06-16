@@ -1,9 +1,9 @@
 <h1>{{title}}</h1>
 {{#if isAuthenticated }}
 <p>Hi {{username}}!</p>
-<a href="/users/id">View ID token claims</a>
+<a href="/azure/id">View ID token claims</a>
 <br>
-<a href="/auth/acquireToken">Acquire a token to call the Microsoft Graph API</a>
+<a href="/auth/acquireToken">Acquire a token to call the Azure API and print Azure data</a>
 <br>
 <a href="/auth/deleteSession">Delete Session</a>
 <br>
@@ -11,4 +11,7 @@
 {{else}}
 <p>Welcome to {{title}}</p>
 <a href="/auth/signin">Sign in</a>
+<br><br>
+<a href="/auth/deleteSession">Delete Session</a>
+<br>
 {{/if}}

@@ -9,12 +9,16 @@ var msal = require('@azure/msal-node');
 var {
     msalConfig,
     REDIRECT_URI,
-    POST_LOGOUT_REDIRECT_URI
+    POST_LOGOUT_REDIRECT_URI,
+    azureSigninScopes,
+    azureAuthorizedScopes,
 } = require('../authConfig');
 
 const router = express.Router();
 const msalInstance = new msal.ConfidentialClientApplication(msalConfig);
 const cryptoProvider = new msal.CryptoProvider();
+
+const _ = require('lodash');
 
 /**
  * Prepares the auth code request parameters and initiates the first leg of auth code flow
@@ -42,6 +46,8 @@ async function redirectToAuthCodeUrl(req, res, next, authCodeUrlRequestParams, a
      * https://azuread.github.io/microsoft-authentication-library-for-js/ref/modules/_azure_msal_node.html#authorizationurlrequest
      * https://azuread.github.io/microsoft-authentication-library-for-js/ref/modules/_azure_msal_node.html#authorizationcoderequest
      **/
+    // url parameters:
+    // https://docs.microsoft.com/en-us/azure/active-directory/develop/v2-oauth2-auth-code-flow
 
     req.session.authCodeUrlRequest = {
         redirectUri: REDIRECT_URI,
@@ -90,7 +96,8 @@ router.get('/signin', async function (req, res, next) {
          * By default, MSAL Node will add OIDC scopes to the auth code url request. For more information, visit:
          * https://docs.microsoft.com/azure/active-directory/develop/v2-permissions-and-consent#openid-connect-scopes
          */
-        scopes: [],
+        //scopes: [],
+        scopes: azureSigninScopes,
     };
 
     const authCodeRequestParams = {
@@ -99,7 +106,8 @@ router.get('/signin', async function (req, res, next) {
          * By default, MSAL Node will add OIDC scopes to the auth code request. For more information, visit:
          * https://docs.microsoft.com/azure/active-directory/develop/v2-permissions-and-consent#openid-connect-scopes
          */
-        scopes: [],
+        // scopes: [],
+        scopes: azureSigninScopes,
     };
 
     // trigger the first leg of auth code flow
@@ -115,17 +123,17 @@ router.get('/acquireToken', async function (req, res, next) {
     const state = cryptoProvider.base64Encode(
         JSON.stringify({
             csrfToken: req.session.csrfToken,
-            redirectTo: '/users/profile'
+            redirectTo: '/azure/profile'
         })
     );
 
     const authCodeUrlRequestParams = {
         state: state,
-        scopes: ["User.Read", "https://management.azure.com/user_impersonation"],
+        scopes: azureAuthorizedScopes,
     };
 
     const authCodeRequestParams = {
-        scopes: ["User.Read", "https://management.azure.com/user_impersonation"],
+        scopes: azureAuthorizedScopes,
     };
 
     // trigger the first leg of auth code flow
@@ -133,6 +141,9 @@ router.get('/acquireToken', async function (req, res, next) {
 });
 
 router.post('/redirect', async function (req, res, next) {
+    if (_.get(req, 'body.error')) {
+        return next(new Error(`${_.get(req, 'body.error')} - ${_.get(req, 'body.error_description')}`));
+    }
     if (req.body.state) {
         const state = JSON.parse(cryptoProvider.base64Decode(req.body.state));
 
