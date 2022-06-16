@@ -1,0 +1,19 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "node",
+            "request": "launch",
+            "name": "azure-identity-multitenant-sample",
+            "program": "${workspaceFolder}/azure-identity-multitenant-sample/App/bin/www",
+            "cwd": "${workspaceFolder}/azure-identity-multitenant-sample/App",
+            "console": "integratedTerminal",
+            "env": {
+                "DEBUG": "*"
+            }   
+        }
+    ]
+}
