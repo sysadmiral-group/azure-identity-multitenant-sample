@@ -55,13 +55,14 @@ router.get('/profile',
                 })
             }
             
-            const curlExample = `curl -X GET -H "Authorization: Bearer $ACCESS_TOKEN" -H "Content-Type: application/json" ${apiUrlGetSubscriptions}`
+            const cliExample = `
+    ACCESS_TOKEN=${accessToken}
+    curl -X GET -H "Authorization: Bearer $ACCESS_TOKEN" -H "Content-Type: application/json" ${apiUrlGetSubscriptions}`
 
             res.render('profile', {
-                title: 'Subscriptions and resource groups',
+                title: 'Subscriptions and resource groups API Call',
                 profile,
-                accessToken,
-                curlExample
+                cliExample
             });
         } catch (error) {
             next(error);
@@ -74,21 +75,44 @@ router.get('/daemonApp',
     isAuthenticated, // check if user is authenticated
     async function (req, res, next) {
         try {
-            const accessToken = req.session.accessToken;
-            const appId = _.get(req.session.daemonAppData, 'appId');
-            const tenantId = _.get(req.session.daemonAppData, 'tenantId');
-            const password = _.get(req.session.daemonAppData, 'password');
-            const curlExample = `
-            AZURE_CLIENT_SECRET=${password}
-            cartography -azure-sp-auth -azure-sync-all-subscriptions -azure-tenant-id ${tenantId} -azure-client-id ${appId} –azure-client-secret-env-var AZURE_CLIENT_SECRET
-            `
 
             const profile = req.session.daemonAppData;
             res.render('profile', {
                 title: "Daemon App Service Principal",
                 profile,
-                accessToken: "",
-                curlExample: curlExample
+                next: {
+                    href: "/auth/assignRoleToDaemonApp",
+                    title: "Assign Reader Role for Daemon App"
+                }
+            });
+        } catch (error) {
+            next(error);
+        }
+    }
+)
+
+router.get('/assignRoleToDaemonApp',
+    isAuthenticated, // check if user is authenticated
+    async function (req, res, next) {
+        try {
+
+            const appId = _.get(req.session.daemonAppData, 'appId');
+            const tenantId = _.get(req.session.daemonAppData, 'tenant');
+            const password = _.get(req.session.daemonAppData, 'password');
+            
+            const cliExample = `
+    AZURE_CLIENT_SECRET=${password}
+    cartography -azure-sp-auth -azure-sync-all-subscriptions -azure-tenant-id ${tenantId} -azure-client-id ${appId} -azure-client-secret-env-var AZURE_CLIENT_SECRET
+            `
+            const profile = req.session.assignDaemonAppRoleData;
+            res.render('profile', {
+                title: "Daemon App Service Principal",
+                profile,
+                cliExample,
+                // next: {
+                //     href: "/auth/assignRoleToDaemonApp",
+                //     title: "Assign Reader Role for Daemon App"
+                // }
             });
         } catch (error) {
             next(error);

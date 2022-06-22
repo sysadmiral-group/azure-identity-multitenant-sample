@@ -1,8 +1,4 @@
-<h1>Azure API Call</h1>
-<br>
-    <a href="https://docs.microsoft.com/en-us/rest/api/resources/resources/get" target="_blank">Azure Management REST Api Referenese</a>
-
-<h3>{{ title }}</h3>
+<h1>{{ title }}</h1>
 <table>
     <tbody>
         {{#each profile}}
@@ -14,14 +10,17 @@
     </tbody>
 </table>
 <br>
+{{#if cliExample }}
 <dim>
     <p><b>cli Example:</b></p>
 <pre>
-ACCESS_TOKEN={{accessToken}}
-{{ curlExample }}
+{{ cliExample }}
 </pre>
 </dim>
+{{/if}}
 
 <br>
+{{#if next }}<a href="{{next.href}}">Next - {{ next.title }}</a>{{/if}}
 
-<a href="/">Go back</a>
+<br><br><br>
+<a href="/">Home</a>

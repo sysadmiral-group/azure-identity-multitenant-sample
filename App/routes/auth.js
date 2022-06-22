@@ -16,7 +16,8 @@ const {
 } = require('../authConfig');
 
 const {
-    createDaemonApp
+    createDaemonApp,
+    assignDaemonAppRole,
 } = require('../azure');
 
 const router = express.Router();
@@ -147,8 +148,21 @@ router.get('/createDaemonApp', async function (req, res, next) {
     // trigger the first leg of auth code flow
     return redirectToAuthCodeUrl(req, res, next, {
         redirectTo: "/azure/daemonApp",
-        scopes: ["https://graph.microsoft.com/.default"],
+        scopes: ["https://graph.microsoft.com//.default"],
+        //scopes: ["https://management.azure.com/.default", "Application.ReadWrite.All" ],
+        //scopes: ["https://management.azure.com//.default", "https://graph.microsoft.com//.default" ],
+        //scopes: ["https://management.azure.com//subscriptions/928f490f-b18e-413c-ac78-3df981618526", "Application.ReadWrite.All" ],
         next: c.CREATE_DAEMON_APP,
+    });
+});
+
+router.get('/assignRoleToDaemonApp', async function (req, res, next) {
+
+    // trigger the first leg of auth code flow
+    return redirectToAuthCodeUrl(req, res, next, {
+        redirectTo: "/azure/assignRoleToDaemonApp",
+        scopes: ["https://management.azure.com//.default"],
+        next: c.ASSIGN_ROLE_TO_DAEMON_APP,
     });
 });
 
@@ -176,7 +190,10 @@ router.post('/redirect', async function (req, res, next) {
                 if (nextAction === c.CREATE_DAEMON_APP ) {
                     const daemonAppData = await createDaemonApp(tokenResponse);
                     req.session.daemonAppData = daemonAppData;
-                } 
+                } else if (nextAction === c.ASSIGN_ROLE_TO_DAEMON_APP) {
+                    const assignDaemonAppRoleData = await assignDaemonAppRole(tokenResponse);
+                    req.session.assignDaemonAppRoleData = assignDaemonAppRoleData;
+                }
                 res.redirect(state.redirectTo);
             } catch (error) {
                 next(error);

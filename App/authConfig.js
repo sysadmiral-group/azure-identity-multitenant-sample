@@ -33,7 +33,8 @@ const GRAPH_ME_ENDPOINT = process.env.GRAPH_API_ENDPOINT + "v1.0/me";
 
 // constant strings
 const c = {
-  CREATE_DAEMON_APP: "createDaemonApp",
+    CREATE_DAEMON_APP: "createDaemonApp",
+    ASSIGN_ROLE_TO_DAEMON_APP: "assignRoleToDaemonApp",
 }
 
 const azureSigninScopes = [
