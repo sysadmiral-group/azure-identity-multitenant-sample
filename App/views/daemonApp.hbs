@@ -1,0 +1,25 @@
+<h1>Daemon App</h1>
+<br>
+
+<table>
+    <tbody>
+        {{#each app}}
+        <tr>
+            <td>{{@key}}: </td>
+            <td>{{this}}</td>
+        </tr>
+        {{/each}}
+    </tbody>
+</table>
+<br>
+<dim>
+    <p><b>curl Example:</b></p>
+<pre>
+ACCESS_TOKEN={{accessToken}}
+{{ curlExample }}
+</pre>
+</dim>
+
+<br>
+
+<a href="/">Go back</a>

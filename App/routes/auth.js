@@ -3,16 +3,21 @@
  * Licensed under the MIT License.
  */
 
-var express = require('express');
-var msal = require('@azure/msal-node');
+const express = require('express');
+const msal = require('@azure/msal-node');
 
-var {
+const {
     msalConfig,
     REDIRECT_URI,
     POST_LOGOUT_REDIRECT_URI,
     azureSigninScopes,
-    azureAuthorizedScopes,
+    azureManagementScopes,
+    c
 } = require('../authConfig');
+
+const {
+    createDaemonApp
+} = require('../azure');
 
 const router = express.Router();
 const msalInstance = new msal.ConfidentialClientApplication(msalConfig);
@@ -25,10 +30,54 @@ const _ = require('lodash');
  * @param req: Express request object
  * @param res: Express response object
  * @param next: Express next function
- * @param authCodeUrlRequestParams: parameters for requesting an auth code url
- * @param authCodeRequestParams: parameters for requesting tokens using auth code
+ * @param opts: {
+ *   redirectTo: url to redirect to (string)
+ *   scopes: array of scopes, example ["https://graph.microsoft.com/user", "https://management.azure.com/user_impersonation" ]
+ *   next: string, defines next step there access_code is used. custom logic used to process it
+ *   nextParams: defines next step parameters 
+ * }
+ * @param redirectTo: (url string) where to redirect after we get ACCESS_TOKEN
+ * @param scopes: (strings array) scope to require
  */
-async function redirectToAuthCodeUrl(req, res, next, authCodeUrlRequestParams, authCodeRequestParams) {
+async function redirectToAuthCodeUrl(req, res, next, opts) {
+    
+    // create a GUID for crsf
+    req.session.csrfToken = cryptoProvider.createNewGuid();
+
+    /**
+     * The MSAL Node library allows you to pass your custom state as state parameter in the Request object.
+     * The state parameter can also be used to encode information of the app's state before redirect.
+     * You can pass the user's state in the app, such as the page or view they were on, as input to this parameter.
+     */
+    const state = cryptoProvider.base64Encode(
+        JSON.stringify({
+            csrfToken: req.session.csrfToken,
+            redirectTo: _.get(opts, "redirectTo"),
+            next: _.get(opts, "next"),
+            ..._.get(opts, "nextParams", {}),
+        })
+    );
+
+    const authCodeUrlRequestParams = {
+        state: state,
+
+        /**
+         * By default, MSAL Node will add OIDC scopes to the auth code url request. For more information, visit:
+         * https://docs.microsoft.com/azure/active-directory/develop/v2-permissions-and-consent#openid-connect-scopes
+         */
+        //scopes: [],
+        scopes: _.get(opts, "scopes", []),
+    };
+
+    const authCodeRequestParams = {
+
+        /**
+         * By default, MSAL Node will add OIDC scopes to the auth code request. For more information, visit:
+         * https://docs.microsoft.com/azure/active-directory/develop/v2-permissions-and-consent#openid-connect-scopes
+         */
+        // scopes: [],
+        scopes: _.get(opts, "scopes", []),
+    };
 
     // Generate PKCE Codes before starting the authorization flow
     const { verifier, challenge } = await cryptoProvider.generatePkceCodes();
@@ -40,6 +89,9 @@ async function redirectToAuthCodeUrl(req, res, next, authCodeUrlRequestParams, a
         challenge: challenge,
     };
 
+    // @param authCodeUrlRequestParams: parameters for requesting an auth code url
+    // authCodeRequestParams: parameters for requesting tokens using auth code
+    
     /**
      * By manipulating the request objects below before each request, we can obtain
      * auth artifacts with desired claims. For more information, visit:
@@ -72,72 +124,32 @@ async function redirectToAuthCodeUrl(req, res, next, authCodeUrlRequestParams, a
     }
 };
 
+
 router.get('/signin', async function (req, res, next) {
-
-    // create a GUID for crsf
-    req.session.csrfToken = cryptoProvider.createNewGuid();
-
-    /**
-     * The MSAL Node library allows you to pass your custom state as state parameter in the Request object.
-     * The state parameter can also be used to encode information of the app's state before redirect.
-     * You can pass the user's state in the app, such as the page or view they were on, as input to this parameter.
-     */
-    const state = cryptoProvider.base64Encode(
-        JSON.stringify({
-            csrfToken: req.session.csrfToken,
-            redirectTo: '/'
-        })
-    );
-
-    const authCodeUrlRequestParams = {
-        state: state,
-
-        /**
-         * By default, MSAL Node will add OIDC scopes to the auth code url request. For more information, visit:
-         * https://docs.microsoft.com/azure/active-directory/develop/v2-permissions-and-consent#openid-connect-scopes
-         */
-        //scopes: [],
-        scopes: azureSigninScopes,
-    };
-
-    const authCodeRequestParams = {
-
-        /**
-         * By default, MSAL Node will add OIDC scopes to the auth code request. For more information, visit:
-         * https://docs.microsoft.com/azure/active-directory/develop/v2-permissions-and-consent#openid-connect-scopes
-         */
-        // scopes: [],
-        scopes: azureSigninScopes,
-    };
-
     // trigger the first leg of auth code flow
-    return redirectToAuthCodeUrl(req, res, next, authCodeUrlRequestParams, authCodeRequestParams)
+    return redirectToAuthCodeUrl(req, res, next, {
+        redirectTo: "/",
+        scopes: azureSigninScopes,
+    });
 });
 
 router.get('/acquireToken', async function (req, res, next) {
 
-    // create a GUID for csrf
-    req.session.csrfToken = cryptoProvider.createNewGuid();
+    // trigger the first leg of auth code flow
+    return redirectToAuthCodeUrl(req, res, next, {
+        redirectTo: "/azure/profile",
+        scopes: azureManagementScopes,
+    });
+});
 
-    // encode the state param
-    const state = cryptoProvider.base64Encode(
-        JSON.stringify({
-            csrfToken: req.session.csrfToken,
-            redirectTo: '/azure/profile'
-        })
-    );
-
-    const authCodeUrlRequestParams = {
-        state: state,
-        scopes: azureAuthorizedScopes,
-    };
-
-    const authCodeRequestParams = {
-        scopes: azureAuthorizedScopes,
-    };
+router.get('/createDaemonApp', async function (req, res, next) {
 
     // trigger the first leg of auth code flow
-    return redirectToAuthCodeUrl(req, res, next, authCodeUrlRequestParams, authCodeRequestParams)
+    return redirectToAuthCodeUrl(req, res, next, {
+        redirectTo: "/azure/daemonApp",
+        scopes: ["https://graph.microsoft.com/.default"],
+        next: c.CREATE_DAEMON_APP,
+    });
 });
 
 router.post('/redirect', async function (req, res, next) {
@@ -159,6 +171,12 @@ router.post('/redirect', async function (req, res, next) {
                 req.session.account = tokenResponse.account;
                 req.session.isAuthenticated = true;
 
+                // code here what to do before redirect to user's output
+                const nextAction = state.next;
+                if (nextAction === c.CREATE_DAEMON_APP ) {
+                    const daemonAppData = await createDaemonApp(tokenResponse);
+                    req.session.daemonAppData = daemonAppData;
+                } 
                 res.redirect(state.redirectTo);
             } catch (error) {
                 next(error);

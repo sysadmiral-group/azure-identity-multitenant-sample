@@ -39,6 +39,7 @@ router.get('/profile',
             }
             const apiUrlGetSubscriptions = "https://management.azure.com/subscriptions?api-version=2020-01-01"
             const subscriptionsResponse = await fetch(apiUrlGetSubscriptions, accessToken);
+            
             const subscriptionValue = _.get(subscriptionsResponse, 'value', []);
             _.forEach(subscriptionValue, (v) => {
                 profile.subscriptions += `${v.subscriptionId} (${v.displayName}) | `;
@@ -55,6 +56,7 @@ router.get('/profile',
             }
             
             const curlExample = `curl -X GET -H "Authorization: Bearer $ACCESS_TOKEN" -H "Content-Type: application/json" ${apiUrlGetSubscriptions}`
+
             res.render('profile', {
                 profile,
                 accessToken,
@@ -66,5 +68,33 @@ router.get('/profile',
     }
 );
 
+// https://github.com/Azure/azure-sdk-for-node/blob/master/Documentation/ServicePrincipal/spCreate.js
+router.get('/daemonApp',
+    isAuthenticated, // check if user is authenticated
+    async function (req, res, next) {
+        try {
+            const accessToken = req.session.accessToken;
 
+
+            // const credentials = {
+            //     authority: "https://login.microsoftonline.com/common/",
+            //     account: req.session.account,
+            //     idToken: req.session.idToken,
+            //     accessToken: req.session.accessToken,
+            //     fromCache: false,
+            //     tokenType: "Bearer",
+            // }
+            const curlExample = `curl -X GET -H "Authorization: Bearer $ACCESS_TOKEN" -H "Content-Type: application/json" ${apiUrlGetSubscriptions}`
+
+            const profile = {}
+            res.render('profile', {
+                profile,
+                accessToken,
+                curlExample
+            });
+        } catch (error) {
+            next(error);
+        }
+    }
+)
 module.exports = router;

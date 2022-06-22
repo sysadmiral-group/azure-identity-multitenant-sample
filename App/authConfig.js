@@ -31,12 +31,18 @@ const REDIRECT_URI = process.env.REDIRECT_URI;
 const POST_LOGOUT_REDIRECT_URI = process.env.POST_LOGOUT_REDIRECT_URI;
 const GRAPH_ME_ENDPOINT = process.env.GRAPH_API_ENDPOINT + "v1.0/me";
 
+// constant strings
+const c = {
+  CREATE_DAEMON_APP: "createDaemonApp",
+}
+
 const azureSigninScopes = [
     // "openid", "email", "profile", "offline_access",
     "User.Read",
-    "https://management.azure.com/user_impersonation"   
+    "https://management.azure.com/user_impersonation",
+    "Application.ReadWrite.All",
 ]
-const azureAuthorizedScopes = [
+const azureManagementScopes = [
     "https://management.azure.com/.default",  
 ]
 
@@ -46,5 +52,6 @@ module.exports = {
     POST_LOGOUT_REDIRECT_URI,
     GRAPH_ME_ENDPOINT,
     azureSigninScopes,
-    azureAuthorizedScopes,
+    azureManagementScopes,
+    c
 };
