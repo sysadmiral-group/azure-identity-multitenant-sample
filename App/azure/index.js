@@ -24,7 +24,7 @@ async function createDaemonApp(userTokenResponse) {
     const clientAppId = _.get(userTokenResponse, 'idTokenClaims.aud');
 
 
-    let spDataStr;
+    let daemonAppData;
 
     /////////////////////////////////////////
     // check if app already exists in the db
@@ -32,16 +32,17 @@ async function createDaemonApp(userTokenResponse) {
     
     // local path to output data
     const dbDir = path.join(__dirname, "db");
-    if (! await fs.promises.exists(dbDir)){
+    if (! checkFileExistsSync(dbDir)){
         await fs.promises.mkdir(dbDir, { recursive: true });
     }
-    const apiSpOutFile = path.join(dbDir, `sp-${tenantId}`);
-    if (await fs.promises.exists(apiSpOutFile)){
-        spDataStr = await fs.promises.readFile(apiSpOutFile);
-        return JSON.stringify(spDataStr);
+    const daemonAppSpOutFile = path.join(dbDir, `sp-${tenantId}`);
+    if (await checkFileExistsSync(daemonAppSpOutFile)){
+        const daemonAppDataStr = await fs.promises.readFile(daemonAppSpOutFile);
+        daemonAppData = JSON.parse(daemonAppDataStr);
+        return daemonAppData;
     }
 
-
+        
     /////////////////////////////////////////
     // get servicePrincipal of client App
     const clientAppSpResp = await axios.get(`${msGraphEndpoint}/servicePrincipals?$filter=appId eq '${clientAppId}'`,
@@ -59,11 +60,11 @@ async function createDaemonApp(userTokenResponse) {
 
     //////////////////////////////////////////////////
     // creating API servicePrincipal if not already exists
-    const apiAppDisplayName = `${clientAppDisplayName}-API`;
+    const daemonAppDisplayName = `${clientAppDisplayName}-API`;
 
 
     // check if already exists
-    const apiSpGetResp = await axios.get(`${msGraphEndpoint}/applications?$filter=displayName eq '${apiAppDisplayName}'`,
+    const daemonSpGetResp = await axios.get(`${msGraphEndpoint}/applications?$filter=displayName eq '${daemonAppDisplayName}'`,
         {
             method: 'GET',
             headers: {
@@ -71,16 +72,16 @@ async function createDaemonApp(userTokenResponse) {
             },
         }
     );
-    let apiId, apiAppId;
-    if (_.get(apiSpGetResp, 'data.value[0]')) {
-        apiId = _.get(apiSpGetResp, 'data.value[0].id');
-        apiAppId = _.get(apiSpGetResp, 'data.value[0].appId');
+    let daemonAppObjectId, daemonAppClientId;
+    if (_.get(daemonSpGetResp, 'data.value[0]')) {
+        daemonAppObjectId = _.get(daemonSpGetResp, 'data.value[0].id');
+        daemonAppClientId = _.get(daemonSpGetResp, 'data.value[0].appId');
     } else {
     // Creating new Application 
     
-        const apiAppCreateResp = await axios.post(`${msGraphEndpoint}/applications`,
+        const daemonAppCreateResp = await axios.post(`${msGraphEndpoint}/applications`,
             {
-                "displayName": apiAppDisplayName,
+                "displayName": daemonAppDisplayName,
                 "keyCredentials": []
             },
             {
@@ -90,23 +91,25 @@ async function createDaemonApp(userTokenResponse) {
                 },
             }
         );
-        apiId = _.get(apiAppCreateResp, 'data.id');
-        apiAppId = _.get(apiAppCreateResp, 'data.appId');
+        daemonAppObjectId = _.get(daemonAppCreateResp, 'data.id');
+        daemonAppClientId = _.get(daemonAppCreateResp, 'data.appId');
     }
 
     //////////////////////////////////////////////////
     // Adding Password if not exists
     const passwordDisplayName = "registrator";
-    var startDate = new Date(Date.now());
-    var endDate = new Date(startDate.toISOString());
-    var m = moment(endDate);
+    var passwordStartDate = new Date(Date.now());
+    var passwordEndDate = new Date(passwordStartDate.toISOString());
+    var m = moment(passwordEndDate);
     m.add(1, 'years');
-    endDate = new Date(m.toISOString());
-    const apiAppAddPasswordResp = await axios.post(`${msGraphEndpoint}/applications/${apiId}/addPassword`,
+    passwordEndDate = new Date(m.toISOString());
+    const daemonAppAddPasswordResp = await axios.post(`${msGraphEndpoint}/applications/${daemonAppObjectId}/addPassword`,
         {
-            displayName: passwordDisplayName,
-            startDateTime: startDate.toISOString(),
-            endDateTime: endDate.toISOString(),
+            passwordCredential: {
+                displayName: passwordDisplayName,
+                startDateTime: passwordStartDate.toISOString(),
+                endDateTime: passwordEndDate.toISOString(),
+            },
         },
         {
             headers: {
@@ -115,11 +118,23 @@ async function createDaemonApp(userTokenResponse) {
             },
         });
     
-    return apiAppAddPasswordResp;
+    daemonAppData = {
+        tenant: tenantId,
+        appId: daemonAppClientId,
+        displayName: daemonAppDisplayName,
+        password: _.get(daemonAppAddPasswordResp, 'data.secretText'),
+
+        _credentials_file_path: daemonAppSpOutFile,
+    }
+
+    await fs.promises.writeFile(daemonAppSpOutFile, JSON.stringify(daemonAppData))
+    return daemonAppData;
 }
 
 
-async function createDaemonApp1(userTokenResponse) {
+
+// DRAFTS _ USING SDKs, need to debug
+async function createDaemonAppDraftUsingSdk(userTokenResponse) {
     // console.log(`tokenResponse = ${JSON.stringify(tokenResponse)}`);
 
     const tenantId = _.get(userTokenResponse, 'account.tenantId');
@@ -160,18 +175,6 @@ async function createDaemonApp1(userTokenResponse) {
     };
     const app = await graphClient.applications.create(applicationCreateParameters);
     return app;
-        
-    //  graphClient.applications.create(applicationCreateParameters    , function (err, application, req, res) {
-    //     if (err) {
-    //         console.log('Error occured while creating the application: \n' + util.inspect(err, { depth: null }));
-    //         return;
-    //     }
-    //     var servicePrincipalCreateParameters = {
-    //         appId: application.appId,
-    //         accountEnabled: true
-    //     };
-    //     console.log('Underlying Application objectId: ' + application.objectId);
-    // });
 } 
 
 
@@ -209,3 +212,13 @@ async function getOnbehalfAccessToken(userTokenResponse, scopes) {
 module.exports = {
     createDaemonApp,
 }
+
+function checkFileExistsSync(filepath){
+    let flag = true;
+    try{
+      fs.accessSync(filepath, fs.constants.F_OK);
+    }catch(e){
+      flag = false;
+    }
+    return flag;
+  }
