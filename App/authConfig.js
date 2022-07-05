@@ -35,6 +35,9 @@ const GRAPH_ME_ENDPOINT = process.env.GRAPH_API_ENDPOINT + "v1.0/me";
 const c = {
     CREATE_DAEMON_APP: "createDaemonApp",
     ASSIGN_ROLE_TO_DAEMON_APP: "assignRoleToDaemonApp",
+
+    LOCAL_FILES: "localFiles",
+    AWS: "aws",
 }
 
 const azureSigninScopes = [

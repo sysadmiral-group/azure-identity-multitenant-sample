@@ -22,7 +22,15 @@ cp .env.sample .env
 ```
 - set CLIENT_ID and CLIENT_SECRET from the configured Azure App
 
+### secret storage
+- using AWS Secret manager with [js sdk v3](https://docs.aws.amazon.com/AWSJavaScriptSDK/v3/latest/clients/client-secrets-manager/index.html)
+
+
+
 ## Start
+
+### On AWS
+
 
 ### Locally 
 ```

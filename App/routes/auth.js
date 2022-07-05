@@ -191,7 +191,8 @@ router.post('/redirect', async function (req, res, next) {
                     const daemonAppData = await createDaemonApp(tokenResponse);
                     req.session.daemonAppData = daemonAppData;
                 } else if (nextAction === c.ASSIGN_ROLE_TO_DAEMON_APP) {
-                    const assignDaemonAppRoleData = await assignDaemonAppRole(tokenResponse);
+                    const daemonAppData = req.session.daemonAppData;
+                    const assignDaemonAppRoleData = await assignDaemonAppRole(tokenResponse, daemonAppData);
                     req.session.assignDaemonAppRoleData = assignDaemonAppRoleData;
                 }
                 res.redirect(state.redirectTo);

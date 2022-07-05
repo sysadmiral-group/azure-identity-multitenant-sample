@@ -3,41 +3,28 @@ var axios = require('axios').default;
 const _ = require('lodash');
 var moment = require('moment');
 
-const path = require('path');
-
-var msrestazure = require('ms-rest-azure');
-var graph = require('azure-graph');
-var fs = require('fs');
 var uuid = require('uuid');
 
 const {
-    msalConfig,
-} = require('../authConfig');
+    getDaemonAppData,
+    saveDaemonAppData,
+} = require('../secrets_storage');
 
 const msGraphEndpoint = 'https://graph.microsoft.com/v1.0'
 
 
-// https://docs.microsoft.com/en-us/graph/api/overview?view=graph-rest-1.0
-async function createDaemonApp(userTokenResponse) {
 
-    const tenantId = _.get(userTokenResponse, 'account.tenantId');
+// https://docs.microsoft.com/en-us/graph/api/overview?view=graph-rest-1.0
+
+async function getDaemonAppName(userTokenResponse) {
     // get client application name
     const clientAppId = _.get(userTokenResponse, 'idTokenClaims.aud');
-
-    /////////////////////////////////////////
-    // check if app already exists in the db
-    // return it if exists
-    
-    let daemonAppData = await getDaemonAppData(tenantId);
-    if (daemonAppData) {
-        return daemonAppData;
-    }
-        
     /////////////////////////////////////////
     // get servicePrincipal of client App
     const clientAppSpResp = await axios.get(`${msGraphEndpoint}/servicePrincipals?$filter=appId eq '${clientAppId}'`,
         {
-            method: 'GET',
+            method: 'GET'
+            ,
             headers: {
                 Authorization: `Bearer ${userTokenResponse.accessToken}`
             },
@@ -47,10 +34,28 @@ async function createDaemonApp(userTokenResponse) {
     if (!clientAppDisplayName) {
         throw new Error("Application is not registered or consented");
     }
+    const daemonAppDisplayName = `${clientAppDisplayName}-API`;
+    return daemonAppDisplayName;
+}
+
+
+async function createDaemonApp(userTokenResponse) {
+
+    const tenantId = _.get(userTokenResponse, 'account.tenantId');
+    // get client application name
+    const daemonAppDisplayName = await getDaemonAppName(userTokenResponse);
+
+    /////////////////////////////////////////
+    // check if app already exists in the secrets strorage
+    // return it if exists
+    
+    let daemonAppData = await getDaemonAppData(tenantId, daemonAppDisplayName);
+    if (daemonAppData) {
+        return daemonAppData;
+    }
 
     //////////////////////////////////////////////////
     // creating API servicePrincipal if not already exists
-    const daemonAppDisplayName = `${clientAppDisplayName}-API`;
 
     // check if already exists
     const daemonAppGetResp = await axios.get(`${msGraphEndpoint}/applications?$filter=displayName eq '${daemonAppDisplayName}'`,
@@ -139,13 +144,13 @@ async function createDaemonApp(userTokenResponse) {
     daemonAppData = {
         tenant: tenantId,
         appId: daemonAppClientId,
-        displayName: daemonAppDisplayName,
+        appName: daemonAppDisplayName,
         password: _.get(daemonAppAddPasswordResp, 'data.secretText'),
 
         spId: daemonSpId,
     }
 
-    await saveDaemonAppData(tenantId, daemonAppData);
+    await saveDaemonAppData(tenantId, daemonAppDisplayName, daemonAppData);
     return daemonAppData;
 }
 
@@ -153,10 +158,9 @@ async function createDaemonApp(userTokenResponse) {
 // Assign Reader Role for daemon app 
 // https://docs.microsoft.com/en-us/rest/api/authorization/role-assignments/create
 // Management REST API - https://docs.microsoft.com/en-us/rest/api/resources/resources/get
-async function assignDaemonAppRole(userTokenResponse) {
+async function assignDaemonAppRole(userTokenResponse, daemonAppData) {
     const tenantId = _.get(userTokenResponse, 'account.tenantId');
 
-    const daemonAppData = await getDaemonAppData(tenantId);
     if (!daemonAppData) {
         throw new Error("Daemon Application does not exists or not found in the db"); 
     }
@@ -228,40 +232,3 @@ module.exports = {
     createDaemonApp,
     assignDaemonAppRole,
 }
-
-async function getDaemonAppData(tenantId) {
-    let daemonAppData;
-    const dbDir = path.join(__dirname, "db");
-    if (! await checkFileExists(dbDir)){
-        await fs.promises.mkdir(dbDir, { recursive: true });
-    }
-    const daemonAppSpFile = path.join(dbDir, `sp-${tenantId}`);
-    if (await checkFileExists(daemonAppSpFile)){
-        const daemonAppDataStr = await fs.promises.readFile(daemonAppSpFile);
-        daemonAppData = JSON.parse(daemonAppDataStr);
-        daemonAppData._alreadyExists = "true";
-        return daemonAppData;
-    } else {
-        return null;
-    }
-}
-
-async function saveDaemonAppData(tenantId, daemonAppData) {
-    const dbDir = path.join(__dirname, "db");
-    if (! await checkFileExists(dbDir)){
-        await fs.promises.mkdir(dbDir, { recursive: true });
-    }
-    const daemonAppSpFile = path.join(dbDir, `sp-${tenantId}`);
-    daemonAppData._credentials_file_path = daemonAppSpFile;
-    await fs.promises.writeFile(daemonAppSpFile, JSON.stringify(daemonAppData));
-}
-
-async function checkFileExists(filepath){
-    let flag = true;
-    try {
-      await fs.promises.access(filepath, fs.constants.F_OK);
-    }catch(e){
-      flag = false;
-    }
-    return flag;
-  }
